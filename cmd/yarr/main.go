@@ -197,7 +197,7 @@ func main() {
 	httpClient := client.NewBuilder().
 		Timeout(httpTimeout).
 		Middleware(
-			client.UserAgent("Yarr/"+Version),
+			client.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"),
 			client.ConditionalRequests(worker.NewFeedStateStore(store)),
 		).
 		Build()
