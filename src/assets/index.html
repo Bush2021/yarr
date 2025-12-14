@@ -251,6 +251,10 @@
                         new folder
                     </button>
                     <div class="dropdown-divider"></div>
+                    <button class="dropdown-item" @click="refreshFeed(current.feed)">
+                        <span class="icon mr-1">{% inline "rotate-cw.svg" %}</span>
+                        Refresh
+                    </button>
                     <button class="dropdown-item text-danger" @click.prevent="deleteFeed(current.feed)">
                         <span class="icon mr-1">{% inline "trash.svg" %}</span>
                         Delete
