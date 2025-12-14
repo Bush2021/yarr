@@ -2,6 +2,7 @@ package worker
 
 import (
 	"log"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -10,6 +11,12 @@ import (
 )
 
 const NUM_WORKERS = 4
+
+var restrictedPatterns = []string{
+	"/twitter/",
+}
+
+var limiters sync.Map
 
 type Worker struct {
 	db      *storage.Storage
@@ -137,7 +144,26 @@ func (w *Worker) refresher(feeds []storage.Feed) {
 
 func (w *Worker) worker(srcqueue <-chan storage.Feed, dstqueue chan<- []storage.Item) {
 	for feed := range srcqueue {
+		var matchedKey string
+		for _, pattern := range restrictedPatterns {
+			if strings.Contains(feed.FeedLink, pattern) {
+				matchedKey = pattern
+				break
+			}
+		}
+		var mutex *sync.Mutex
+		if matchedKey != "" {
+			val, _ := limiters.LoadOrStore(matchedKey, &sync.Mutex{})
+			mutex = val.(*sync.Mutex)
+			mutex.Lock()
+		}
+
 		items, err := listItems(feed, w.db)
+
+		if mutex != nil {
+			mutex.Unlock()
+		}
+
 		if err != nil {
 			w.db.SetFeedError(feed.Id, err)
 		}
