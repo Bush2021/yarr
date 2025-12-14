@@ -290,6 +290,10 @@
             {{ $t("new_folder") }}
           </button>
           <div class="c-dropdown-divider"></div>
+          <button class="c-dropdown-item w-100 text-start" @click="refreshFeed(current.feed)">
+            <v-icon class="me-1" name="rotate-cw" />
+            Refresh
+          </button>
           <button
             class="c-dropdown-item w-100 text-start text-danger d-flex gap-1"
             @click.prevent="deleteFeed(current.feed)">
@@ -1170,6 +1174,31 @@ export default defineComponent({
         }
         feed.feed_link = newLink;
       }
+    },
+    refreshFeed(feed: Feed) {
+      this.loading.feeds++;
+
+      api.feeds
+        .refresh_one(feed.id)
+        .then(response => {
+          if (response.ok) {
+            this.refreshFeeds();
+            this.refreshStats();
+            if (this.current.feed?.id === feed.id) {
+              this.refreshItems();
+            }
+          } else {
+            console.error("Refresh failed", response);
+          }
+        })
+        .catch(err => {
+          console.error("Refresh error:", err);
+        })
+        .finally(() => {
+          if (this.loading.feeds > 0) {
+            this.loading.feeds--;
+          }
+        });
     },
     async renameFeed(feed: Feed) {
       const newTitle = prompt(this.$t("prompt_new_title"), feed.title);

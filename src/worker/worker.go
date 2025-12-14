@@ -81,6 +81,26 @@ func (w *Worker) SetRefreshRate(minute int64) {
 	}(w.refresh.C, w.stopper, minute)
 }
 
+func (w *Worker) RefreshFeed(feed *model.Feed) {
+	log.Printf("Refreshing single feed: %s", feed.FeedLink)
+	items, err := listItems(w.client, *feed)
+	if err != nil {
+		log.Printf("Failed to refresh %s: %s", feed.FeedLink, err)
+		errMsg := err.Error()
+		w.db.UpdateFeedState(feed.Id, model.UpdateFeedStateParams{LastError: &errMsg})
+		return
+	}
+	empty := ""
+	w.db.UpdateFeedState(feed.Id, model.UpdateFeedStateParams{LastError: &empty})
+
+	if len(items) > 0 {
+		w.db.CreateItems(items)
+		if feed.Icon == nil {
+			w.FindFeedFavicon(*feed)
+		}
+	}
+}
+
 func (w *Worker) RefreshFeeds() {
 	w.reflock.Lock()
 	defer w.reflock.Unlock()
@@ -102,8 +122,6 @@ func (w *Worker) RefreshFeeds() {
 }
 
 func (w *Worker) refresher(feeds []model.Feed) {
-	// w.db.ResetFeedErrors()
-
 	srcqueue := make(chan model.Feed, len(feeds))
 	dstqueue := make(chan []model.Item)
 
