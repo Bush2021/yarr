@@ -47,6 +47,9 @@ export default {
       refresh: function() {
         return api('post', './api/feeds/refresh')
       },
+      refresh_one: function(id) {
+        return api('post', './api/feeds/' + id + '/refresh')
+      },
       list_errors: function() {
         return api('get', './api/feeds/errors').then(json)
       },

@@ -241,6 +241,10 @@
                     {{ $t('new_folder') }}
                 </button>
                 <div class="dropdown-divider"></div>
+                <button class="dropdown-item" @click="refreshFeed(current.feed)">
+                    <v-icon class="mr-1" name="rotate-cw" />
+                    Refresh
+                </button>
                 <button class="dropdown-item text-danger" @click.prevent="deleteFeed(current.feed)">
                     <v-icon class="mr-1" name="trash" />
                     {{ $t('delete') }}
