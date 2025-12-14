@@ -107,6 +107,9 @@ export default {
     refresh(): Promise<Response> {
       return api("post", "./api/feeds/refresh");
     },
+    refresh_one(id: number): Promise<Response> {
+      return api("post", `./api/feeds/${id}/refresh`);
+    },
     list_errors(): Promise<Record<number, string>> {
       return api("get", "./api/feeds/errors").then(json<Record<number, string>>);
     },
