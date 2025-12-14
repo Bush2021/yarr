@@ -95,6 +95,22 @@ func (w *Worker) SetRefreshRate(minute int64) {
 	}(w.refresh.C, w.stopper, minute)
 }
 
+func (w *Worker) RefreshFeed(feed *storage.Feed) {
+	log.Printf("Refreshing single feed: %s", feed.FeedLink)
+	items, err := listItems(*feed, w.db)
+	if err != nil {
+		log.Printf("Failed to refresh %s: %s", feed.FeedLink, err)
+		w.db.SetFeedError(feed.Id, err)
+		return
+	}
+
+	if len(items) > 0 {
+		w.db.CreateItems(items)
+		w.db.SetFeedSize(feed.Id, len(items))
+		w.db.SyncSearch()
+	}
+}
+
 func (w *Worker) RefreshFeeds() {
 	w.reflock.Lock()
 	defer w.reflock.Unlock()

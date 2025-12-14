@@ -596,6 +596,32 @@ var vm = new Vue({
         })
       }
     },
+    refreshFeed: function(feed) {
+      if (typeof this.loading.feeds === 'number') {
+        this.loading.feeds++;
+      } else {
+        this.loading.feeds = 1;
+      }
+
+      api.feeds.refresh_one(feed.id).then(response => {
+        if (response.ok) {
+          console.log("Single feed refreshed successfully");
+          this.refreshFeeds();
+          this.refreshStats();
+          if (this.current.feed && this.current.feed.id === feed.id) {
+             this.refreshItems();
+          }
+        } else {
+          console.error("Refresh failed", response);
+        }
+      }).catch(err => {
+        console.error("Refresh error:", err);
+      }).finally(() => {
+        if (typeof this.loading.feeds === 'number' && this.loading.feeds > 0) {
+          this.loading.feeds--;
+        }
+      });
+    },
     renameFeed: function(feed) {
       var newTitle = prompt('Enter new title', feed.title)
       if (newTitle) {
