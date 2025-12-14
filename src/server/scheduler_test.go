@@ -8,16 +8,21 @@ import (
 	"testing"
 
 	"github.com/nkanaev/yarr/src/storage"
+	"github.com/nkanaev/yarr/src/storage/model"
 )
 
 type fakeScheduler struct {
-	pending   int32
-	refreshes int
-	rates     []int64
+	pending         int32
+	refreshes       int
+	rates           []int64
+	singleRefreshes []int64
 }
 
 func (f *fakeScheduler) FeedsPending() int32 { return f.pending }
 func (f *fakeScheduler) RefreshFeeds()       { f.refreshes++ }
+func (f *fakeScheduler) RefreshFeed(feed *model.Feed) {
+	f.singleRefreshes = append(f.singleRefreshes, feed.Id)
+}
 func (f *fakeScheduler) SetRefreshRate(min int64) {
 	f.rates = append(f.rates, min)
 }
