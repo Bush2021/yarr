@@ -95,16 +95,13 @@ func main() {
 	}
 
 	if db == "" {
-		configPath, err := os.UserConfigDir()
+		exePath, err := os.Executable()
 		if err != nil {
-			log.Fatal("Failed to get config dir: ", err)
+			log.Fatal("Failed to get executable path: ", err)
 		}
-
-		storagePath := filepath.Join(configPath, "yarr")
-		if err := os.MkdirAll(storagePath, 0755); err != nil {
-			log.Fatal("Failed to create app config dir: ", err)
-		}
-		db = filepath.Join(storagePath, "storage.db")
+		exeDir := filepath.Dir(exePath)
+		db = filepath.Join(exeDir, "storage.db")
+		log.Printf("Running in portable mode. DB path: %s", db)
 	}
 
 	log.Printf("using db file %s", db)
