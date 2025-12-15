@@ -181,6 +181,12 @@ func (s *Storage) SetFeedError(feedID int64, lastError error) {
 	}
 }
 
+func (s *Storage) DeleteFeedError(feedID int64) {
+	if _, err := s.db.Exec(`delete from feed_errors where feed_id = ?`, feedID); err != nil {
+		log.Print(err)
+	}
+}
+
 func (s *Storage) GetFeedErrors() map[int64]string {
 	errors := make(map[int64]string)
 
