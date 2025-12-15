@@ -331,7 +331,8 @@ var (
 //   - Delete entries older than 90 days relative to the latest arrived item in the same feed.
 func (s *SQLiteStorage) DeleteOldItems() {
 	result, err := s.db.Exec(`
-		delete from items
+		update items
+		set content = '', status = :read_status
 		where id in (
 			select id
 			from (
@@ -346,6 +347,7 @@ func (s *SQLiteStorage) DeleteOldItems() {
 			where rn > :keep_size
 			  and last_arrived < datetime(max_la, :keep_days_limit)
 		)`,
+		sql.Named("read_status", model.READ),
 		sql.Named("starred_status", model.STARRED),
 		sql.Named("keep_size", itemsKeepSize),
 		sql.Named("keep_days_limit", fmt.Sprintf("-%d days", itemsKeepDays)),
