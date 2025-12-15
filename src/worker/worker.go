@@ -103,6 +103,7 @@ func (w *Worker) RefreshFeed(feed *storage.Feed) {
 		w.db.SetFeedError(feed.Id, err)
 		return
 	}
+	w.db.DeleteFeedError(feed.Id)
 
 	if len(items) > 0 {
 		w.db.CreateItems(items)
@@ -185,6 +186,8 @@ func (w *Worker) worker(srcqueue <-chan storage.Feed, dstqueue chan<- []storage.
 
 		if err != nil {
 			w.db.SetFeedError(feed.Id, err)
+		} else {
+			w.db.DeleteFeedError(feed.Id)
 		}
 		dstqueue <- items
 	}
