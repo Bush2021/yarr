@@ -179,7 +179,7 @@ func (w *Worker) worker(srcqueue <-chan storage.Feed, dstqueue chan<- []storage.
 		items, err := listItems(feed, w.db)
 
 		if mutex != nil {
-			sleepSeconds := 5 + rand.Intn(5)
+			sleepSeconds := 2 + rand.Intn(4)
 			time.Sleep(time.Duration(sleepSeconds) * time.Second)
 			mutex.Unlock()
 		}
