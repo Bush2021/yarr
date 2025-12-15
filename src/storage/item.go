@@ -436,8 +436,11 @@ func (s *Storage) DeleteOldItems() {
 	}
 
 	for feedId, limit := range feedLimits {
+		// Change it from `delete from items` to `update items set content = '', status = 1`
+		// to keep the item GUIDs but free up space.
 		result, err := s.db.Exec(`
-			delete from items
+			update items
+			set content = '', status = 1
 			where id in (
 				select i.id
 				from items i
