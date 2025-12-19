@@ -2,7 +2,6 @@ package worker
 
 import (
 	"log"
-	"math/rand"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -16,8 +15,6 @@ const NUM_WORKERS = 4
 var restrictedPatterns = []string{
 	"/twitter/",
 }
-
-var limiters sync.Map
 
 type Worker struct {
 	db      *storage.Storage
@@ -169,20 +166,13 @@ func (w *Worker) worker(srcqueue <-chan storage.Feed, dstqueue chan<- []storage.
 				break
 			}
 		}
-		var mutex *sync.Mutex
+		// Disable restricted feeds (e.g. twitter) instead of locking/delaying for now
 		if matchedKey != "" {
-			val, _ := limiters.LoadOrStore(matchedKey, &sync.Mutex{})
-			mutex = val.(*sync.Mutex)
-			mutex.Lock()
+			dstqueue <- nil
+			continue
 		}
 
 		items, err := listItems(feed, w.db)
-
-		if mutex != nil {
-			sleepSeconds := 2 + rand.Intn(4)
-			time.Sleep(time.Duration(sleepSeconds) * time.Second)
-			mutex.Unlock()
-		}
 
 		if err != nil {
 			w.db.SetFeedError(feed.Id, err)
