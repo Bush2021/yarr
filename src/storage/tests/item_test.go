@@ -153,6 +153,15 @@ func getItemGuids(items []model.Item) []string {
 	return guids
 }
 
+func getItemByGUID(db storage.Storage, guid string) model.Item {
+	for _, item := range db.ListItems(model.ItemFilter{}, 1000, false, true) {
+		if item.GUID == guid {
+			return item
+		}
+	}
+	panic(fmt.Sprintf("item with guid %q not found", guid))
+}
+
 func TestListItems(t *testing.T) {
 	dbtest(t, func(t *testing.T, db storage.Storage) {
 		scope := testItemsSetup(db)
@@ -335,26 +344,56 @@ func TestMarkItemsReadByFeed(t *testing.T) {
 	})
 }
 
+// DeleteOldItems keeps every row but clears the content of expired items, so
+// these tests assert how many rows had their content cleared rather than how
+// many rows were removed.
+func countCleared(t *testing.T, db storage.Storage, feedID int64) int {
+	t.Helper()
+
+	count := 0
+	for _, item := range db.ListItems(model.ItemFilter{FeedID: &feedID}, 1000, false, true) {
+		if item.Content == "" && item.Status == model.READ {
+			count++
+		}
+	}
+	return count
+}
+
 func TestDeleteOldItems(t *testing.T) {
-	t.Run("keeps at least 50 items", func(t *testing.T) {
+	t.Run("clears content of all but the 50 newest", func(t *testing.T) {
 		dbtest(t, func(t *testing.T, db storage.Storage) {
 			synctest.Test(t, func(t *testing.T) {
 				feed := db.CreateFeed(model.CreateFeedParams{Title: "f", FeedLink: "http://f.xml"})
 				now := time.Now()
 				items := make([]model.Item, 100)
 				for i := range 100 {
-					items[i] = model.Item{GUID: strconv.Itoa(i), FeedId: feed.Id, Date: now.Add(time.Duration(i) * time.Hour * 24)}
+					items[i] = model.Item{
+						GUID:    strconv.Itoa(i),
+						FeedId:  feed.Id,
+						Content: "content-" + strconv.Itoa(i),
+						Date:    now.Add(time.Duration(i) * time.Hour * 24),
+					}
 				}
 				db.CreateItems(items)
 
-				// // Set 1 recent (latest), 99 old (100 days ago)
+				// Set 1 recent (latest), 99 old (100 days ago).
 				time.Sleep(100 * 24 * time.Hour)
 				db.CreateItems([]model.Item{items[99]})
 
 				db.DeleteOldItems()
+
 				remaining := db.ListItems(model.ItemFilter{FeedID: &feed.Id}, 1000, false, false)
-				if len(remaining) != 50 {
-					t.Errorf("expected 50 items, have %d", len(remaining))
+				if len(remaining) != 100 {
+					t.Errorf("expected 100 items, have %d", len(remaining))
+				}
+				if have := countCleared(t, db, feed.Id); have != 50 {
+					t.Errorf("expected 50 cleared items, have %d", have)
+				}
+
+				// Clearing is idempotent.
+				db.DeleteOldItems()
+				if have := countCleared(t, db, feed.Id); have != 50 {
+					t.Errorf("expected second cleanup to keep 50 cleared items, have %d", have)
 				}
 			})
 		})
@@ -367,7 +406,12 @@ func TestDeleteOldItems(t *testing.T) {
 				now := time.Now()
 				items := make([]model.Item, 100)
 				for i := range 100 {
-					items[i] = model.Item{GUID: strconv.Itoa(i), FeedId: feed.Id, Date: now}
+					items[i] = model.Item{
+						GUID:    strconv.Itoa(i),
+						FeedId:  feed.Id,
+						Content: "content-" + strconv.Itoa(i),
+						Date:    now,
+					}
 				}
 				db.CreateItems(items)
 
@@ -377,9 +421,13 @@ func TestDeleteOldItems(t *testing.T) {
 				db.CreateItems([]model.Item{items[99]})
 
 				db.DeleteOldItems()
+
 				remaining := db.ListItems(model.ItemFilter{FeedID: &feed.Id}, 1000, false, false)
 				if len(remaining) != 100 {
 					t.Errorf("expected 100 items, have %d", len(remaining))
+				}
+				if have := countCleared(t, db, feed.Id); have != 0 {
+					t.Errorf("expected 0 cleared items, have %d", have)
 				}
 			})
 		})
@@ -392,7 +440,12 @@ func TestDeleteOldItems(t *testing.T) {
 				now := time.Now()
 				items := make([]model.Item, 100)
 				for i := range 100 {
-					items[i] = model.Item{GUID: strconv.Itoa(i), FeedId: feed.Id, Date: now.Add(time.Duration(i) * time.Second)}
+					items[i] = model.Item{
+						GUID:    strconv.Itoa(i),
+						FeedId:  feed.Id,
+						Content: "content-" + strconv.Itoa(i),
+						Date:    now.Add(time.Duration(i) * time.Second),
+					}
 				}
 				db.CreateItems(items)
 
@@ -400,7 +453,7 @@ func TestDeleteOldItems(t *testing.T) {
 				time.Sleep(100 * 24 * time.Hour)
 				db.CreateItems([]model.Item{items[99]})
 
-				// Star 10 old items that would otherwise be deleted (rn > 50 and old)
+				// Star 10 old items that would otherwise be cleared (rn > 50 and old)
 				allItems := db.ListItems(model.ItemFilter{FeedID: &feed.Id}, 100, false, false)
 				for _, item := range allItems {
 					guid, _ := strconv.Atoi(item.GUID)
@@ -411,15 +464,27 @@ func TestDeleteOldItems(t *testing.T) {
 
 				db.DeleteOldItems()
 
-				// 50 (limit) + 10 (starred) = 60 items should remain.
 				remaining := db.ListItems(model.ItemFilter{FeedID: &feed.Id}, 1000, false, false)
-				if len(remaining) != 60 {
-					t.Errorf("expected 60 items, have %d", len(remaining))
+				if len(remaining) != 100 {
+					t.Errorf("expected 100 items, have %d", len(remaining))
+				}
+				if have := countCleared(t, db, feed.Id); have != 40 {
+					t.Errorf("expected 40 cleared items, have %d", have)
+				}
+
+				// Starred items keep their content even when old.
+				starredWithContent := 0
+				for _, item := range db.ListItems(model.ItemFilter{FeedID: &feed.Id}, 1000, false, true) {
+					if item.Status == model.STARRED && item.Content != "" {
+						starredWithContent++
+					}
+				}
+				if starredWithContent != 10 {
+					t.Errorf("expected 10 starred items with content, have %d", starredWithContent)
 				}
 			})
 		})
 	})
-	// })
 }
 
 func TestDeleteItem(t *testing.T) {
@@ -559,6 +624,107 @@ func TestSearch(t *testing.T) {
 		have = getItemGuids(db.ListItems(model.ItemFilter{Search: &s7}, 10, true, false))
 		if len(have) > 0 {
 			t.Errorf("delete trigger failed: found deleted item: %v", have)
+		}
+	})
+}
+
+func TestCreateItemsUpdatesExistingItem(t *testing.T) {
+	dbtest(t, func(t *testing.T, db storage.Storage) {
+		feed := db.CreateFeed(model.CreateFeedParams{Title: "feed", FeedLink: "http://test.com/feed.xml"})
+
+		date1 := time.Now().UTC().Add(-time.Hour)
+		date2 := time.Now().UTC()
+
+		ok := db.CreateItems([]model.Item{{
+			GUID:       "same-guid",
+			FeedId:     feed.Id,
+			Title:      "old title",
+			Link:       "https://example.com/old",
+			Content:    "old content",
+			Date:       date1,
+			MediaLinks: model.MediaLinks{{URL: "https://example.com/old.jpg", Type: "image"}},
+		}})
+		if !ok {
+			t.Fatal("failed to create initial item")
+		}
+
+		created := getItemByGUID(db, "same-guid")
+		if !db.UpdateItemStatus(created.Id, model.STARRED) {
+			t.Fatal("failed to set initial item status")
+		}
+
+		ok = db.CreateItems([]model.Item{{
+			GUID:       "same-guid",
+			FeedId:     feed.Id,
+			Title:      "new title",
+			Link:       "https://example.com/new",
+			Content:    "new content",
+			Date:       date2,
+			MediaLinks: model.MediaLinks{{URL: "https://example.com/new.mp3", Type: "audio"}},
+		}})
+		if !ok {
+			t.Fatal("failed to upsert item")
+		}
+
+		updated := getItemByGUID(db, "same-guid")
+		if updated.Title != "new title" || updated.Link != "https://example.com/new" || updated.Content != "new content" {
+			t.Fatalf("item fields were not updated: %#v", updated)
+		}
+		if updated.Status != model.STARRED {
+			t.Fatalf("item status changed unexpectedly\nwant: %d\nhave: %d", model.STARRED, updated.Status)
+		}
+		if len(updated.MediaLinks) != 1 || updated.MediaLinks[0].URL != "https://example.com/new.mp3" {
+			t.Fatalf("media links were not updated: %#v", updated.MediaLinks)
+		}
+		if updated.Date.Sub(date2) > time.Millisecond || date2.Sub(updated.Date) > time.Millisecond {
+			t.Fatalf("item date was not updated\nwant: %v\nhave: %v", date2, updated.Date)
+		}
+
+		search := "new title"
+		found := getItemGuids(db.ListItems(model.ItemFilter{Search: &search}, 10, true, false))
+		if !reflect.DeepEqual(found, []string{"same-guid"}) {
+			t.Fatalf("expected updated item to be reindexed for search\nwant: [same-guid]\nhave: %v", found)
+		}
+	})
+}
+
+func TestCreateItemsIgnoresMinorConflictChanges(t *testing.T) {
+	dbtest(t, func(t *testing.T, db storage.Storage) {
+		feed := db.CreateFeed(model.CreateFeedParams{Title: "feed", FeedLink: "http://test.com/feed-minor.xml"})
+
+		date := time.Now().UTC()
+		ok := db.CreateItems([]model.Item{{
+			GUID:       "minor-guid",
+			FeedId:     feed.Id,
+			Title:      "stable title",
+			Link:       "https://example.com/stable",
+			Content:    "stable content",
+			Date:       date,
+			MediaLinks: model.MediaLinks{{URL: "https://example.com/a.jpg", Type: "image"}},
+		}})
+		if !ok {
+			t.Fatal("failed to create initial item")
+		}
+
+		ok = db.CreateItems([]model.Item{{
+			GUID:       "minor-guid",
+			FeedId:     feed.Id,
+			Title:      "stable title",
+			Link:       "https://example.com/stable",
+			Content:    "stable content with tiny edit",
+			Date:       date,
+			MediaLinks: model.MediaLinks{{URL: "https://example.com/b.jpg", Type: "image"}},
+		}})
+		if !ok {
+			t.Fatal("failed to upsert item")
+		}
+
+		item := getItemByGUID(db, "minor-guid")
+		if item.Content != "stable content" {
+			t.Fatalf("content changed unexpectedly for minor update\nwant: %q\nhave: %q", "stable content", item.Content)
+		}
+		if len(item.MediaLinks) != 1 || item.MediaLinks[0].URL != "https://example.com/a.jpg" {
+			t.Fatalf("media links changed unexpectedly: %#v", item.MediaLinks)
 		}
 	})
 }

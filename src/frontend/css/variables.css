@@ -9,6 +9,10 @@
   --v-bg: #fff;
   --v-fg: #111;
 
+  --scrollbar-thumb: #b6beca;
+  --scrollbar-thumb-hover: #8f9db0;
+  --scrollbar-track: rgba(0, 0, 0, 0.08);
+
   --v-selected-bg: hsl(from var(--v-sepia-bg) h s 10%);
   --v-selected-fg: hsl(from var(--v-sepia-bg) h s 90%);
 
@@ -48,6 +52,10 @@
 
 [data-theme="sepia"] {
   &:root {
+    --scrollbar-thumb: #baa782;
+    --scrollbar-thumb-hover: #9c8660;
+    --scrollbar-track: #e9dfc8;
+
     --v-border-color: hsl(from var(--v-sepia-bg) h s 80%);
     --v-focus-color: hsl(from var(--v-sepia-bg) h s 10%);
 
@@ -65,6 +73,10 @@
 [data-theme="night"] {
   &:root {
     color-scheme: dark;
+
+    --scrollbar-thumb: #434a54;
+    --scrollbar-thumb-hover: #5b6573;
+    --scrollbar-track: #121212;
 
     --v-border-color: hsl(from var(--v-night-bg) h s 15%);
     --v-focus-color: hsl(from var(--v-night-bg) h s 10%);
