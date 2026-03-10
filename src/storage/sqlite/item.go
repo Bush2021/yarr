@@ -59,7 +59,42 @@ func (s *SQLiteStorage) CreateItems(items []model.Item) bool {
 				:date_arrived, :last_arrived, :status
 			)
 			on conflict (feed_id, guid) do update set
-				last_arrived = :last_arrived`,
+				last_arrived = :last_arrived,
+				title = case
+					when (items.content = '' and excluded.content != '')
+						or excluded.date > items.date
+						or (excluded.link != '' and excluded.link != items.link)
+					then excluded.title
+					else items.title
+				end,
+				link = case
+					when (items.content = '' and excluded.content != '')
+						or excluded.date > items.date
+						or (excluded.link != '' and excluded.link != items.link)
+					then excluded.link
+					else items.link
+				end,
+				date = case
+					when (items.content = '' and excluded.content != '')
+						or excluded.date > items.date
+						or (excluded.link != '' and excluded.link != items.link)
+					then excluded.date
+					else items.date
+				end,
+				content = case
+					when (items.content = '' and excluded.content != '')
+						or excluded.date > items.date
+						or (excluded.link != '' and excluded.link != items.link)
+					then excluded.content
+					else items.content
+				end,
+				media_links = case
+					when (items.content = '' and excluded.content != '')
+						or excluded.date > items.date
+						or (excluded.link != '' and excluded.link != items.link)
+					then excluded.media_links
+					else items.media_links
+				end`,
 			sql.Named("guid", item.GUID),
 			sql.Named("feed_id", item.FeedId),
 			sql.Named("title", item.Title),
@@ -346,7 +381,8 @@ func (s *SQLiteStorage) DeleteOldItems() {
 			)
 			where rn > :keep_size
 			  and last_arrived < datetime(max_la, :keep_days_limit)
-		)`,
+		)
+		and (content != '' or status != :read_status)`,
 		sql.Named("read_status", model.READ),
 		sql.Named("starred_status", model.STARRED),
 		sql.Named("keep_size", itemsKeepSize),
@@ -357,7 +393,11 @@ func (s *SQLiteStorage) DeleteOldItems() {
 		return
 	}
 	numDeleted, err := result.RowsAffected()
-	if err == nil && numDeleted > 0 {
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	if numDeleted > 0 {
 		log.Printf("Deleted %d old items", numDeleted)
 
 		if _, err := s.db.Exec("vacuum"); err != nil {

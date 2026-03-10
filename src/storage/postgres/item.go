@@ -62,7 +62,49 @@ func (s *PostgresStorage) CreateItems(items []model.Item) bool {
 				to_tsvector('simple', $11)
 			)
 			on conflict (feed_id, guid) do update set
-				last_arrived = excluded.last_arrived`,
+				last_arrived = excluded.last_arrived,
+				title = case
+					when (items.content = '' and excluded.content != '')
+						or excluded.date > items.date
+						or (excluded.link != '' and excluded.link != items.link)
+					then excluded.title
+					else items.title
+				end,
+				link = case
+					when (items.content = '' and excluded.content != '')
+						or excluded.date > items.date
+						or (excluded.link != '' and excluded.link != items.link)
+					then excluded.link
+					else items.link
+				end,
+				date = case
+					when (items.content = '' and excluded.content != '')
+						or excluded.date > items.date
+						or (excluded.link != '' and excluded.link != items.link)
+					then excluded.date
+					else items.date
+				end,
+				content = case
+					when (items.content = '' and excluded.content != '')
+						or excluded.date > items.date
+						or (excluded.link != '' and excluded.link != items.link)
+					then excluded.content
+					else items.content
+				end,
+				media_links = case
+					when (items.content = '' and excluded.content != '')
+						or excluded.date > items.date
+						or (excluded.link != '' and excluded.link != items.link)
+					then excluded.media_links
+					else items.media_links
+				end,
+				search = case
+					when (items.content = '' and excluded.content != '')
+						or excluded.date > items.date
+						or (excluded.link != '' and excluded.link != items.link)
+					then excluded.search
+					else items.search
+				end`,
 			item.GUID,
 			item.FeedId,
 			item.Title,
@@ -346,7 +388,8 @@ var (
 func (s *PostgresStorage) DeleteOldItems() {
 	keepDaysLimit := fmt.Sprintf("-%d days", itemsKeepDays)
 	result, err := s.db.Exec(`
-		delete from items
+		update items
+		set content = '', status = $1, search = to_tsvector('simple', title)
 		where id in (
 			select id
 			from (
@@ -356,11 +399,13 @@ func (s *PostgresStorage) DeleteOldItems() {
 					last_arrived,
 					max(last_arrived) over (partition by feed_id) as max_la
 				from items
-				where status != $1
+				where status != $2
 			) sub
-			where rn > $2
-			  and last_arrived < max_la + $3::interval
-		)`,
+			where rn > $3
+			  and last_arrived < max_la + $4::interval
+		)
+		and (content != '' or status != $1)`,
+		model.READ,
 		model.STARRED,
 		itemsKeepSize,
 		keepDaysLimit,
