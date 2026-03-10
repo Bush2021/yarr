@@ -336,25 +336,47 @@ func TestMarkItemsReadByFeed(t *testing.T) {
 }
 
 func TestDeleteOldItems(t *testing.T) {
-	t.Run("keeps at least 50 items", func(t *testing.T) {
+	// Old items are no longer deleted; instead their content is cleared and
+	// they are marked read, so the rows (and their guids) stay in place.
+	countCleared := func(items []model.Item) int {
+		n := 0
+		for _, item := range items {
+			if item.Content == "" && item.Status == model.READ {
+				n++
+			}
+		}
+		return n
+	}
+
+	t.Run("keeps rows but clears old items", func(t *testing.T) {
 		dbtest(t, func(t *testing.T, db storage.Storage) {
 			synctest.Test(t, func(t *testing.T) {
 				feed := db.CreateFeed(model.CreateFeedParams{Title: "f", FeedLink: "http://f.xml"})
 				now := time.Now()
 				items := make([]model.Item, 100)
 				for i := range 100 {
-					items[i] = model.Item{GUID: strconv.Itoa(i), FeedId: feed.Id, Date: now.Add(time.Duration(i) * time.Hour * 24)}
+					items[i] = model.Item{GUID: strconv.Itoa(i), FeedId: feed.Id, Content: "content-" + strconv.Itoa(i), Date: now.Add(time.Duration(i) * time.Hour * 24)}
 				}
 				db.CreateItems(items)
 
-				// // Set 1 recent (latest), 99 old (100 days ago)
+				// Set 1 recent (latest), 99 old (100 days ago)
 				time.Sleep(100 * 24 * time.Hour)
 				db.CreateItems([]model.Item{items[99]})
 
 				db.DeleteOldItems()
-				remaining := db.ListItems(model.ItemFilter{FeedID: &feed.Id}, 1000, false, false)
-				if len(remaining) != 50 {
-					t.Errorf("expected 50 items, have %d", len(remaining))
+				remaining := db.ListItems(model.ItemFilter{FeedID: &feed.Id}, 1000, false, true)
+				if len(remaining) != 100 {
+					t.Errorf("expected 100 items, have %d", len(remaining))
+				}
+				if n := countCleared(remaining); n != 50 {
+					t.Errorf("expected 50 cleared items, have %d", n)
+				}
+
+				// A second cleanup is idempotent: already-cleared items stay put.
+				db.DeleteOldItems()
+				remaining = db.ListItems(model.ItemFilter{FeedID: &feed.Id}, 1000, false, true)
+				if n := countCleared(remaining); n != 50 {
+					t.Errorf("expected second cleanup to keep 50 cleared items, have %d", n)
 				}
 			})
 		})
@@ -367,7 +389,7 @@ func TestDeleteOldItems(t *testing.T) {
 				now := time.Now()
 				items := make([]model.Item, 100)
 				for i := 0; i < 100; i++ {
-					items[i] = model.Item{GUID: strconv.Itoa(i), FeedId: feed.Id, Date: now}
+					items[i] = model.Item{GUID: strconv.Itoa(i), FeedId: feed.Id, Content: "content-" + strconv.Itoa(i), Date: now}
 				}
 				db.CreateItems(items)
 
@@ -377,22 +399,25 @@ func TestDeleteOldItems(t *testing.T) {
 				db.CreateItems([]model.Item{items[99]})
 
 				db.DeleteOldItems()
-				remaining := db.ListItems(model.ItemFilter{FeedID: &feed.Id}, 1000, false, false)
+				remaining := db.ListItems(model.ItemFilter{FeedID: &feed.Id}, 1000, false, true)
 				if len(remaining) != 100 {
 					t.Errorf("expected 100 items, have %d", len(remaining))
+				}
+				if n := countCleared(remaining); n != 0 {
+					t.Errorf("expected 0 cleared items, have %d", n)
 				}
 			})
 		})
 	})
 
-	t.Run("keeps starred", func(t *testing.T) {
+	t.Run("keeps starred content", func(t *testing.T) {
 		dbtest(t, func(t *testing.T, db storage.Storage) {
 			synctest.Test(t, func(t *testing.T) {
 				feed := db.CreateFeed(model.CreateFeedParams{Title: "f", FeedLink: "http://f.xml"})
 				now := time.Now()
 				items := make([]model.Item, 100)
 				for i := 0; i < 100; i++ {
-					items[i] = model.Item{GUID: strconv.Itoa(i), FeedId: feed.Id, Date: now.Add(time.Duration(i) * time.Second)}
+					items[i] = model.Item{GUID: strconv.Itoa(i), FeedId: feed.Id, Content: "content-" + strconv.Itoa(i), Date: now.Add(time.Duration(i) * time.Second)}
 				}
 				db.CreateItems(items)
 
@@ -400,7 +425,7 @@ func TestDeleteOldItems(t *testing.T) {
 				time.Sleep(100 * 24 * time.Hour)
 				db.CreateItems([]model.Item{items[99]})
 
-				// Star 10 old items that would otherwise be deleted (rn > 50 and old)
+				// Star 10 old items that would otherwise be cleared (rn > 50 and old)
 				allItems := db.ListItems(model.ItemFilter{FeedID: &feed.Id}, 100, false, false)
 				for _, item := range allItems {
 					guid, _ := strconv.Atoi(item.GUID)
@@ -411,15 +436,26 @@ func TestDeleteOldItems(t *testing.T) {
 
 				db.DeleteOldItems()
 
-				// 50 (limit) + 10 (starred) = 60 items should remain.
-				remaining := db.ListItems(model.ItemFilter{FeedID: &feed.Id}, 1000, false, false)
-				if len(remaining) != 60 {
-					t.Errorf("expected 60 items, have %d", len(remaining))
+				remaining := db.ListItems(model.ItemFilter{FeedID: &feed.Id}, 1000, false, true)
+				if len(remaining) != 100 {
+					t.Errorf("expected 100 items, have %d", len(remaining))
+				}
+				// 40 old, non-starred items are cleared; 50 recent + 10 starred keep content.
+				if n := countCleared(remaining); n != 40 {
+					t.Errorf("expected 40 cleared items, have %d", n)
+				}
+				starredWithContent := 0
+				for _, item := range remaining {
+					if item.Status == model.STARRED && item.Content != "" {
+						starredWithContent++
+					}
+				}
+				if starredWithContent != 10 {
+					t.Errorf("expected 10 starred items with content, have %d", starredWithContent)
 				}
 			})
 		})
 	})
-	// })
 }
 
 func TestDeleteItem(t *testing.T) {

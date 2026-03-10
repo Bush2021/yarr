@@ -9,6 +9,41 @@ html {
   overscroll-behavior: none;
 }
 
+:root {
+  --scrollbar-thumb: #b6beca;
+  --scrollbar-thumb-hover: #8f9db0;
+  --scrollbar-track: rgba(0, 0, 0, 0.08);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* bootstrap customizations */
 
 .btn-link {
@@ -486,6 +521,12 @@ a,
   background-color: #e0d6ba;
 }
 
+.theme-sepia {
+  --scrollbar-thumb: #baa782;
+  --scrollbar-thumb-hover: #9c8660;
+  --scrollbar-track: #e9dfc8;
+}
+
 /* theme: night */
 
 .theme-night,
@@ -516,6 +557,13 @@ a,
 .theme-night .dropdown-menu,
 .theme-night .modal-content {
   border-color: #1a1a1a;
+}
+
+.theme-night {
+  color-scheme: dark;
+  --scrollbar-thumb: #434a54;
+  --scrollbar-thumb-hover: #5b6573;
+  --scrollbar-track: #121212;
 }
 
 /* animation */
