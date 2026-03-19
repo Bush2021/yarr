@@ -10,7 +10,7 @@ import (
 	"github.com/nkanaev/yarr/src/storage/model"
 )
 
-const NUM_WORKERS = 4
+const NUM_WORKERS = 7
 
 type Worker struct {
 	db      storage.Storage
