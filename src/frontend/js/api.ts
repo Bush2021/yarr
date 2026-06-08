@@ -101,6 +101,9 @@ export default {
     delete(id: number): Promise<Response> {
       return api("delete", `./api/feeds/${id}`);
     },
+    deleteMany(ids: number[]): Promise<Response> {
+      return api("delete", "./api/feeds", { json: { ids } });
+    },
     list_items(id: number): Promise<Item[]> {
       return api("get", `./api/feeds/${id}/items`).then(json<Item[]>);
     },

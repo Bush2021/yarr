@@ -3,6 +3,8 @@ package postgres
 import (
 	"database/sql"
 	"log"
+	"strconv"
+	"strings"
 
 	"github.com/nkanaev/yarr/src/storage/model"
 )
@@ -52,6 +54,27 @@ func (s *PostgresStorage) DeleteFeed(feedId int64) bool {
 		return false
 	}
 	return nrows == 1
+}
+
+func (s *PostgresStorage) DeleteFeeds(ids []int64) bool {
+	if len(ids) == 0 {
+		return false
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "$" + strconv.Itoa(i+1)
+		args[i] = id
+	}
+	_, err := s.db.Exec(
+		`delete from feeds where id in (`+strings.Join(placeholders, ",")+`)`,
+		args...,
+	)
+	if err != nil {
+		log.Print(err)
+		return false
+	}
+	return true
 }
 
 func (s *PostgresStorage) UpdateFeed(feedId int64, params model.UpdateFeedParams) (bool, error) {
