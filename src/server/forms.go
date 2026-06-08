@@ -20,3 +20,7 @@ type FeedCreateForm struct {
 	TitleOverride string `json:"title_override,omitempty"`
 	FolderID      *int64 `json:"folder_id,omitempty"`
 }
+
+type FeedDeleteForm struct {
+	IDs []int64 `json:"ids"`
+}

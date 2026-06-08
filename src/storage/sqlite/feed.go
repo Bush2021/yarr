@@ -3,6 +3,7 @@ package sqlite
 import (
 	"database/sql"
 	"log"
+	"strings"
 
 	"github.com/nkanaev/yarr/src/storage/model"
 )
@@ -54,6 +55,27 @@ func (s *SQLiteStorage) DeleteFeed(feedId int64) bool {
 		return false
 	}
 	return nrows == 1
+}
+
+func (s *SQLiteStorage) DeleteFeeds(ids []int64) bool {
+	if len(ids) == 0 {
+		return false
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	_, err := s.db.Exec(
+		`delete from feeds where id in (`+strings.Join(placeholders, ",")+`)`,
+		args...,
+	)
+	if err != nil {
+		log.Print(err)
+		return false
+	}
+	return true
 }
 
 func (s *SQLiteStorage) UpdateFeed(feedId int64, params model.UpdateFeedParams) (bool, error) {

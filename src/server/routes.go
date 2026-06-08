@@ -272,6 +272,15 @@ func (s *Server) handleFeedList(w http.ResponseWriter, r *http.Request) {
 		default:
 			writeJSON(w, http.StatusOK, map[string]string{"status": "notfound"})
 		}
+	case http.MethodDelete:
+		var form FeedDeleteForm
+		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
+			log.Print(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		s.db(r).DeleteFeeds(form.IDs)
+		w.WriteHeader(http.StatusNoContent)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
