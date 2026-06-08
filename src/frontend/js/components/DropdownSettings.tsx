@@ -16,6 +16,7 @@ interface DropdownSettingsProps {
   onFetchAllFeeds: () => void;
   onImportOPML: (e: Event) => void;
   onShowNewFeed: () => void;
+  onShowManageFeeds: () => void;
   dropdownRef?: Ref<DropdownHandle>;
 }
 
@@ -28,6 +29,7 @@ export default function DropdownSettings({
   onFetchAllFeeds,
   onImportOPML,
   onShowNewFeed,
+  onShowManageFeeds,
   dropdownRef,
 }: DropdownSettingsProps) {
   const { t } = useI18n();
@@ -46,6 +48,13 @@ export default function DropdownSettings({
         onClick={onShowNewFeed}>
         <Icon className="me-1" name="plus" />
         {t("new_feed")}
+      </button>
+      <button
+        type="button"
+        className="c-dropdown-item w-100 text-start d-flex gap-1"
+        onClick={onShowManageFeeds}>
+        <Icon className="me-1" name="sliders" />
+        {t("manage_feeds")}
       </button>
 
       {refreshAvailable && (

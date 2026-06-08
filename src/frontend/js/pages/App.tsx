@@ -87,7 +87,9 @@ export default function App() {
   const itemSortNewestFirst = useSignal<boolean>(appSettings.sort_newest_first ?? true);
 
   // Status & modal
-  const showModal = useSignal<"" | "shortcuts">("");
+  const showModal = useSignal<"" | "shortcuts" | "manage">("");
+  const manageSelected = useSignal<number[]>([]);
+  const manageDeleting = useSignal(false);
   const showNewFeed = useSignal(false);
   const refreshAvailable = useSignal(true);
   const loadingFeeds = useSignal(0);
@@ -216,6 +218,9 @@ export default function App() {
 
   const refreshRateTitle = useComputed(() => {
     return REFRESH_RATE_OPTIONS.find(o => o.value === refreshRate.value)?.title || "0";
+  });
+  const manageAllSelected = useComputed(() => {
+    return feeds.value.length > 0 && feeds.value.every(f => manageSelected.value.includes(f.id));
   });
 
   // Keep document title in sync with unread count
@@ -574,6 +579,26 @@ export default function App() {
     }
   };
 
+  const deleteSelectedFeeds = async () => {
+    if (!manageSelected.value.length || manageDeleting.value) return;
+    if (!confirm(`Are you sure you want to delete ${manageSelected.value.length} feed(s)?`)) return;
+    manageDeleting.value = true;
+    const [err] = await to(api.feeds.deleteMany(manageSelected.value));
+    manageDeleting.value = false;
+    if (err) {
+      showToast(
+        { title: t("fail_save_feed"), description: errDescription(err) },
+        { level: "fail" },
+      );
+      return;
+    }
+    manageSelected.value = [];
+    feedSelected.value = null;
+    refreshFeeds();
+    refreshStats();
+    showModal.value = "";
+  };
+
   const renameFolder = async (folder: Folder) => {
     const title = prompt(t("prompt_new_title"), folder.title);
     if (!title) return;
@@ -875,6 +900,10 @@ export default function App() {
             onFetchAllFeeds={fetchAllFeeds}
             onImportOPML={importOPML}
             onShowNewFeed={() => (showNewFeed.value = true)}
+            onShowManageFeeds={() => {
+              manageSelected.value = [];
+              showModal.value = "manage";
+            }}
           />
         </div>
         <div class="d-flex flex-column overflow-auto border-top flex-grow-1">
@@ -1102,6 +1131,59 @@ export default function App() {
           <Icon name="x" />
         </button>
         {showModal.value === "shortcuts" && <Shortcuts />}
+        {showModal.value === "manage" && (
+          <div>
+            <p className="cursor-default mb-3">
+              <b>{t("manage_feeds")}</b>
+            </p>
+            <label className="c-listitem d-flex align-items-center gap-2 user-select-none">
+              <input
+                type="checkbox"
+                checked={manageAllSelected.value}
+                disabled={manageDeleting.value}
+                onChange={e => {
+                  manageSelected.value = e.currentTarget.checked ? feeds.value.map(f => f.id) : [];
+                }}
+              />
+              <span className="flex-grow-1">{t("select_all")}</span>
+            </label>
+            <div
+              className="d-flex flex-column gap-1 overflow-auto mt-1"
+              style={{ maxHeight: "50vh" }}>
+              {feeds.value.map(feed => (
+                <label
+                  key={feed.id}
+                  className="c-listitem d-flex align-items-center gap-2 user-select-none">
+                  <input
+                    type="checkbox"
+                    checked={manageSelected.value.includes(feed.id)}
+                    disabled={manageDeleting.value}
+                    onChange={e => {
+                      manageSelected.value = e.currentTarget.checked
+                        ? [...manageSelected.value, feed.id]
+                        : manageSelected.value.filter(id => id !== feed.id);
+                    }}
+                  />
+                  {feed.icon ? (
+                    <span className="c-icon flex-shrink-0">
+                      <img src={feed.icon} alt="" loading="lazy" />
+                    </span>
+                  ) : (
+                    <Icon className="flex-shrink-0" name="rss" />
+                  )}
+                  <span className="flex-grow-1 min-w-0 text-truncate">{feed.title}</span>
+                </label>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="c-button w-100 text-danger mt-3"
+              disabled={!manageSelected.value.length || manageDeleting.value}
+              onClick={deleteSelectedFeeds}>
+              {t("delete_selected")} ({manageSelected.value.length})
+            </button>
+          </div>
+        )}
       </Modal>
 
       <ToastContainer />
