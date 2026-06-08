@@ -20,3 +20,7 @@ type FeedCreateForm struct {
 	Title         string `json:"title,omitempty"`
 	FolderID      *int64 `json:"folder_id,omitempty"`
 }
+
+type FeedDeleteForm struct {
+	IDs []int64 `json:"ids"`
+}

@@ -49,6 +49,10 @@
             <v-icon class="me-1" name="plus" />
             {{ $t("new_feed") }}
           </button>
+          <button class="c-dropdown-item w-100 text-start d-flex gap-1" @click="showManageFeeds()">
+            <v-icon class="me-1" name="sliders" />
+            {{ $t("manage_feeds") }}
+          </button>
           <div class="c-dropdown-divider" v-if="refreshAvailable"></div>
           <button
             class="c-dropdown-item w-100 text-start d-flex gap-1"
@@ -514,6 +518,34 @@
         :folder-id="current?.feed?.folder_id ?? current?.folder?.id ?? null"
         @created="onFeedCreated"
         @folder-created="refreshFeeds" />
+      <div v-else-if="showModal === 'manage'">
+        <p class="cursor-default mb-3">
+          <b>{{ $t("manage_feeds") }}</b>
+        </p>
+        <label class="c-listitem d-flex align-items-center gap-2 user-select-none">
+          <input type="checkbox" v-model="manageAllSelected" />
+          <span class="flex-grow-1">{{ $t("select_all") }}</span>
+        </label>
+        <div class="d-flex flex-column gap-1 overflow-auto mt-1" style="max-height: 50vh">
+          <label
+            class="c-listitem d-flex align-items-center gap-2 user-select-none"
+            v-for="feed in feeds"
+            :key="feed.id">
+            <input type="checkbox" :value="feed.id" v-model="manageSelected" />
+            <v-icon class="flex-shrink-0" name="rss" v-if="!feed.icon" />
+            <span class="c-icon flex-shrink-0" v-else>
+              <img :src="feed.icon" alt="" loading="lazy" />
+            </span>
+            <span class="flex-grow-1 min-w-0 text-truncate">{{ feed.title }}</span>
+          </label>
+        </div>
+        <button
+          class="c-button w-100 text-danger mt-3"
+          :disabled="!manageSelected.length"
+          @click="deleteSelectedFeeds()">
+          {{ $t("delete_selected") }} ({{ manageSelected.length }})
+        </button>
+      </div>
       <v-shortcuts v-else-if="showModal === 'shortcuts'" />
     </v-modal>
     <v-toast ref="toast" />
@@ -627,6 +659,7 @@ export default defineComponent({
       feeds: [] as Feed[],
       feedSelected: s.feed,
       feedListWidth: s.feed_list_width || 300,
+      manageSelected: [] as number[],
       items: [] as Item[],
       itemsHasMore: true,
       itemSelected: null as number | null,
@@ -642,7 +675,7 @@ export default defineComponent({
         total: Stats;
       },
 
-      showModal: "" as "" | "shortcuts" | "newfeed",
+      showModal: "" as "" | "shortcuts" | "newfeed" | "manage",
       refreshAvailable: true,
       loading: {
         feeds: 0,
@@ -781,6 +814,14 @@ export default defineComponent({
     refreshRateTitle() {
       const entry = this.refreshRateOptions.find(o => o.value === this.refreshRate);
       return entry ? entry.title : "0";
+    },
+    manageAllSelected: {
+      get(): boolean {
+        return this.feeds.length > 0 && this.manageSelected.length === this.feeds.length;
+      },
+      set(value: boolean) {
+        this.manageSelected = value ? this.feeds.map(feed => feed.id) : [];
+      },
     },
   },
   watch: {
@@ -1235,6 +1276,19 @@ export default defineComponent({
       this.showModal = "";
       this.feedSelected = "feed:" + feed.id;
     },
+    deleteSelectedFeeds() {
+      if (!this.manageSelected.length) return;
+      if (!confirm(`Are you sure you want to delete ${this.manageSelected.length} feed(s)?`)) {
+        return;
+      }
+      api.feeds.deleteMany(this.manageSelected).then(() => {
+        this.manageSelected = [];
+        this.feedSelected = null;
+        this.refreshFeeds();
+        this.refreshStats();
+        this.showModal = "";
+      });
+    },
     async toggleItemStatus(item: Item, targetstatus: ItemStatus) {
       const fallbackstatus: ItemStatus = "read";
       const oldstatus = item.status;
@@ -1314,6 +1368,10 @@ export default defineComponent({
       } else {
         this.itemSelectedReadability = data?.content || "";
       }
+    },
+    showManageFeeds() {
+      this.manageSelected = [];
+      this.showModal = "manage";
     },
     resizeFeedList(width: number) {
       this.feedListWidth = Math.min(Math.max(200, width), 700);
