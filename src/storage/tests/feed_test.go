@@ -151,3 +151,50 @@ func TestDeleteFeed(t *testing.T) {
 		}
 	})
 }
+
+func TestDeleteFeeds(t *testing.T) {
+	dbtest(t, func(t *testing.T, db storage.Storage) {
+		feed1 := db.CreateFeed(model.CreateFeedParams{Title: "feed 1", FeedLink: "http://example1.com/feed.xml"})
+		feed2 := db.CreateFeed(model.CreateFeedParams{Title: "feed 2", FeedLink: "http://example2.com/feed.xml"})
+		feed3 := db.CreateFeed(model.CreateFeedParams{Title: "feed 3", FeedLink: "http://example3.com/feed.xml"})
+		lastError := "test error"
+		for _, feed := range []*model.Feed{feed1, feed2, feed3} {
+			if _, err := db.UpdateFeedState(feed.Id, model.UpdateFeedStateParams{LastError: &lastError}); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		db.CreateItems([]model.Item{
+			{GUID: "item1", FeedId: feed1.Id, Title: "item 1"},
+			{GUID: "item2", FeedId: feed2.Id, Title: "item 2"},
+			{GUID: "item3", FeedId: feed3.Id, Title: "item 3"},
+		})
+
+		if db.DeleteFeeds([]int64{}) {
+			t.Error("empty ids should be a no-op")
+		}
+
+		// non-existent id (100500) is silently ignored
+		if !db.DeleteFeeds([]int64{feed1.Id, feed2.Id, 100500}) {
+			t.Fatal("expected delete to succeed")
+		}
+
+		feeds := db.ListFeeds()
+		if len(feeds) != 1 || feeds[0].Id != feed3.Id {
+			t.Fatalf("expected only feed 3 to remain, got %#v", feeds)
+		}
+
+		// items of deleted feeds are gone via cascade
+		guids := getItemGuids(db.ListItems(model.ItemFilter{}, 10, true, false))
+		if !reflect.DeepEqual(guids, []string{"item3"}) {
+			t.Fatalf("expected only feed 3's items to remain, got %#v", guids)
+		}
+		states, err := db.ListFeedStates()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(states) != 1 || states[0].FeedID != feed3.Id {
+			t.Fatalf("expected only feed 3's state to remain, got %#v", states)
+		}
+	})
+}
