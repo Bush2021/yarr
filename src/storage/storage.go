@@ -15,6 +15,7 @@ type Storage interface {
 	CreateFolder(title string) *model.Folder
 	CreateItems(items []model.Item) bool
 	DeleteFeed(feedId int64) bool
+	DeleteFeeds(ids []int64) bool
 	DeleteItem(id int64) bool
 	DeleteFolder(folderId int64) bool
 	DeleteOldItems()

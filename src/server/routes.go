@@ -309,6 +309,17 @@ func (s *Server) handleFeedList(c *router.Context) {
 		default:
 			c.JSON(http.StatusOK, map[string]string{"status": "notfound"})
 		}
+	} else if c.Req.Method == "DELETE" {
+		var form FeedDeleteForm
+		if err := json.NewDecoder(c.Req.Body).Decode(&form); err != nil {
+			log.Print(err)
+			c.Out.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		s.db.DeleteFeeds(form.IDs)
+		c.Out.WriteHeader(http.StatusNoContent)
+	} else {
+		c.Out.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 

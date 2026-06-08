@@ -56,6 +56,7 @@ export default {
       'feedListWidth': s.feed_list_width || 300,
       'feedNewChoice': [],
       'feedNewChoiceSelected': '',
+      'manageSelected': [],
       'items': [],
       'itemsHasMore': true,
       'itemSelected': null,
@@ -176,6 +177,14 @@ export default {
     refreshRateTitle: function () {
       const entry = this.refreshRateOptions.find(o => o.value === this.refreshRate)
       return entry ? entry.title : '0'
+    },
+    manageAllSelected: {
+      get: function() {
+        return this.feeds.length > 0 && this.manageSelected.length === this.feeds.length
+      },
+      set: function(val) {
+        this.manageSelected = val ? this.feeds.map(function(f) { return f.id }) : []
+      },
     },
   },
   watch: {
@@ -485,6 +494,17 @@ export default {
         })
       }
     },
+    deleteSelectedFeeds: function() {
+      if (!this.manageSelected.length) return
+      if (!confirm('Are you sure you want to delete ' + this.manageSelected.length + ' feed(s)?')) return
+      api.feeds.deleteMany(this.manageSelected).then(function() {
+        vm.manageSelected = []
+        vm.feedSelected = null
+        vm.refreshFeeds()
+        vm.refreshStats()
+        vm.settings = ''
+      })
+    },
     createFeed: function(event) {
       var form = event.target
       var data = {
@@ -571,6 +591,10 @@ export default {
       if (settings === 'create') {
         vm.feedNewChoice = []
         vm.feedNewChoiceSelected = ''
+      }
+
+      if (settings === 'manage') {
+        vm.manageSelected = []
       }
     },
     resizeFeedList: function(width) {

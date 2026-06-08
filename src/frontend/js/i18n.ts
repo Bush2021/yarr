@@ -51,6 +51,36 @@ import { FluentResource, FluentBundle } from '@fluent/bundle'
       "zh": "新建订阅",
       "ru": "Новая лента"
     },
+    "manage_feeds": {
+      "en": "Manage Feeds",
+      "de": "Feeds verwalten",
+      "fr": "Gérer les flux",
+      "es": "Gestionar fuentes",
+      "ja": "フィード管理",
+      "pt": "Gerenciar feeds",
+      "zh": "管理订阅",
+      "ru": "Управление лентами"
+    },
+    "select_all": {
+      "en": "Select all",
+      "de": "Alle auswählen",
+      "fr": "Tout sélectionner",
+      "es": "Seleccionar todo",
+      "ja": "すべて選択",
+      "pt": "Selecionar tudo",
+      "zh": "全选",
+      "ru": "Выбрать все"
+    },
+    "delete_selected": {
+      "en": "Delete selected",
+      "de": "Ausgewählte löschen",
+      "fr": "Supprimer la sélection",
+      "es": "Eliminar seleccionados",
+      "ja": "選択項目を削除",
+      "pt": "Excluir selecionados",
+      "zh": "删除所选",
+      "ru": "Удалить выбранные"
+    },
     "refresh_feeds": {
       "en": "Refresh Feeds",
       "de": "Feeds aktualisieren",

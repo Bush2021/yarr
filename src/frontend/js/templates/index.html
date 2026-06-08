@@ -36,6 +36,10 @@
                     <v-icon class="mr-1" name="plus" />
                     {{ $t('new_feed') }}
                 </button>
+                <button class="dropdown-item" @click="showSettings('manage')">
+                    <v-icon class="mr-1" name="sliders" />
+                    {{ $t('manage_feeds') }}
+                </button>
                 <div class="dropdown-divider"></div>
                 <button class="dropdown-item" @click="fetchAllFeeds()">
                     <v-icon class="mr-1" name="rotate-cw" />
@@ -428,6 +432,30 @@
                 <tr><td><kbd>f</kbd> <kbd>b</kbd></td>  <td>{{ $t('kb_scroll_content') }}</td>
                 </tr>
             </table>
+        </div>
+        <div v-else-if="settings=='manage'">
+            <p class="cursor-default"><b>{{ $t('manage_feeds') }}</b></p>
+            <label class="selectgroup mt-3">
+                <input type="checkbox" v-model="manageAllSelected">
+                <div class="selectgroup-label d-flex align-items-center w-100">
+                    <span class="flex-fill text-left">{{ $t('select_all') }}</span>
+                </div>
+            </label>
+            <div class="overflow-auto scroll-touch mt-1" style="max-height: 50vh;">
+                <label class="selectgroup" v-for="feed in feeds">
+                    <input type="checkbox" :value="feed.id" v-model="manageSelected">
+                    <div class="selectgroup-label d-flex align-items-center w-100">
+                        <v-icon class="mr-2" name="rss" v-if="!feed.has_icon" />
+                        <span class="icon mr-2" v-else><img :src="'./api/feeds/'+feed.id+'/icon'" alt="" loading="lazy"></span>
+                        <span class="flex-fill text-left text-truncate">{{ feed.title }}</span>
+                    </div>
+                </label>
+            </div>
+            <button class="btn btn-block btn-danger mt-3"
+                    :disabled="!manageSelected.length"
+                    @click="deleteSelectedFeeds()">
+                {{ $t('delete_selected') }} ({{ manageSelected.length }})
+            </button>
         </div>
     </v-modal>
 </div>

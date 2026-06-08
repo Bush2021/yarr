@@ -41,6 +41,9 @@ export default {
       delete: function(id) {
         return api('delete', './api/feeds/' + id)
       },
+      deleteMany: function(ids) {
+        return api('delete', './api/feeds', {ids: ids})
+      },
       list_items: function(id) {
         return api('get', './api/feeds/' + id + '/items').then(json)
       },
