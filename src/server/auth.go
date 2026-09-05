@@ -8,7 +8,7 @@ import (
 	"github.com/nkanaev/yarr/src/server/middleware"
 )
 
-type Auth interface {
+type AuthProvider interface {
 	Middleware(next http.Handler) http.HandlerFunc
 	IsAuthenticated(request *http.Request) bool
 	Authenticate(rw http.ResponseWriter, username, password string) bool

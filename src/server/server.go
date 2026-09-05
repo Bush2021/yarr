@@ -17,7 +17,7 @@ type Server struct {
 	worker *worker.Worker
 
 	BasePath string
-	Auth     Auth
+	Auth     AuthProvider
 
 	// https
 	CertFile string
