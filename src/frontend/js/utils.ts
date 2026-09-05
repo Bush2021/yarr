@@ -106,6 +106,40 @@ function formatRel(n: number, unit: RelUnit, locale?: string): string {
   return new Intl.NumberFormat(locale, { style: "unit", unit }).format(n);
 }
 
+// returns ms until relative text rendered by dateRepr would change,
+// or null when static (older than a week).
+export function relRepaintDelay(d: Date): number | null {
+  const sec = (Date.now() - d.getTime()) / 1000;
+  if (isNaN(sec)) return null;
+
+  if (sec >= 0) {
+    let unit: number;
+    if (sec < 2700) {
+      // less than 45 minutes
+      unit = 60;
+    } else if (sec < 86400) {
+      // less than 24 hours
+      unit = 3600;
+    } else if (sec < 604800) {
+      // less than a week
+      unit = 86400;
+    } else {
+      // older than a week
+      return null;
+    }
+
+    const next = (Math.round(sec / unit) + 0.5) * unit;
+    const delay = next - sec;
+    return Math.max(delay * 1000, 1000);
+  } else {
+    // future dates
+    if (Math.abs(sec) >= 604800) {
+      return null;
+    }
+    return 60 * 1000;
+  }
+}
+
 export async function to<T, E = Error>(
   promise: Promise<T>,
 ): Promise<[E, undefined] | [undefined, T]> {

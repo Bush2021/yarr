@@ -3,7 +3,7 @@
 </template>
 
 <script lang="ts">
-import { dateRepr, dateTimeString } from "../utils";
+import { dateRepr, dateTimeString, relRepaintDelay } from "../utils";
 import { defineComponent } from "vue";
 
 export default defineComponent({
@@ -12,7 +12,7 @@ export default defineComponent({
     return {
       date: new Date(this.val),
       formatted: "" as string,
-      interval: undefined as number | undefined,
+      timer: undefined as number | undefined,
     };
   },
   computed: {
@@ -23,23 +23,23 @@ export default defineComponent({
   created() {
     this.repaint();
   },
-  mounted() {
-    this.interval = setInterval(() => {
-      this.repaint();
-    }, 600000); // every 10 minutes
+  unmounted() {
+    window.clearTimeout(this.timer);
   },
   methods: {
     repaint() {
       this.formatted = dateRepr(this.date, this.locale);
+      window.clearTimeout(this.timer);
+      const delay = relRepaintDelay(this.date);
+      if (delay !== null) {
+        this.timer = window.setTimeout(() => this.repaint(), delay);
+      }
     },
   },
   watch: {
     locale() {
       this.repaint();
     },
-  },
-  unmounted() {
-    clearInterval(this.interval);
   },
 });
 </script>
