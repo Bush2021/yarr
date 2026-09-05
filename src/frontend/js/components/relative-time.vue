@@ -1,25 +1,42 @@
 <template>
-  <time :datetime="val">{{ formatted }}</time>
+  <time :datetime="val" :title="title">{{ formatted }}</time>
 </template>
 
 <script lang="ts">
-import { dateRepr } from "../utils";
+import { dateRepr, dateTimeString } from "../utils";
 import { defineComponent } from "vue";
 
 export default defineComponent({
-  props: ["val"],
+  props: ["val", "locale"],
   data() {
-    var d = new Date(this.val);
     return {
-      date: d,
-      formatted: dateRepr(d),
+      date: new Date(this.val),
+      formatted: "" as string,
       interval: undefined as number | undefined,
     };
   },
+  computed: {
+    title(): string {
+      return dateTimeString(this.date, this.locale);
+    },
+  },
+  created() {
+    this.repaint();
+  },
   mounted() {
     this.interval = setInterval(() => {
-      this.formatted = dateRepr(this.date);
+      this.repaint();
     }, 600000); // every 10 minutes
+  },
+  methods: {
+    repaint() {
+      this.formatted = dateRepr(this.date, this.locale);
+    },
+  },
+  watch: {
+    locale() {
+      this.repaint();
+    },
   },
   unmounted() {
     clearInterval(this.interval);

@@ -351,9 +351,7 @@
             <small class="flex-fill text-truncate me-1">
               {{ (feedsById[item.feed_id] || {}).title }}
             </small>
-            <small class="flex-shrink-0"
-              ><v-relative-time v-bind:title="formatDate(item.date)" :val="item.date"
-            /></small>
+            <small class="flex-shrink-0"><v-relative-time :val="item.date" :locale="language" /></small>
           </div>
           <div class="text-break line-clamp-3">{{ item.title || $t("untitled") }}</div>
         </div>
@@ -521,7 +519,7 @@
 <script lang="ts">
 import type { Lang } from "../i18n";
 import api, { NetworkError, HTTPError } from "../api";
-import { scrollto, debounce, debounceMixin, to } from "../utils";
+import { scrollto, debounce, debounceMixin, to, dateTimeString } from "../utils";
 import drag from "../components/drag.vue";
 import dropdown from "../components/dropdown.vue";
 import modal from "../components/modal.vue";
@@ -1090,14 +1088,7 @@ export default defineComponent({
       }
     },
     formatDate(datestr: string) {
-      const options: Intl.DateTimeFormatOptions = {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      };
-      return new Date(datestr).toLocaleDateString(undefined, options);
+      return dateTimeString(new Date(datestr), this.language);
     },
     async moveFeed(feed: Feed, folder_id: number | null) {
       const [err] = await to(api.feeds.update(feed.id, { folder_id }));
