@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/nkanaev/yarr/src/platform"
-	yarr "github.com/nkanaev/yarr/src/server"
+	"github.com/nkanaev/yarr/src/server"
 	"github.com/nkanaev/yarr/src/storage"
 	"github.com/nkanaev/yarr/src/worker"
 )
@@ -142,25 +142,30 @@ func main() {
 	}
 
 	worker.SetVersion(Version)
-	server := yarr.NewServer(addr)
+	srv := server.NewServer(addr)
 
 	if basepath != "" {
-		server.BasePath = "/" + strings.Trim(basepath, "/")
+		srv.BasePath = "/" + strings.Trim(basepath, "/")
 	}
 
 	if certfile != "" && keyfile != "" {
-		server.CertFile = certfile
-		server.KeyFile = keyfile
+		srv.CertFile = certfile
+		srv.KeyFile = keyfile
 	}
+
+	wrk := worker.NewWorker(store)
 
 	if username != "" && password != "" {
-		server.Auth = yarr.NewLocalAuthProvider(username, password, basepath)
+		srv.Auth = server.NewLocalAuthProvider(username, password, basepath)
 	}
-	server.Storage = yarr.NewLocalStorage(store)
+	srv.Storage = server.NewLocalStorage(store)
+	srv.Scheduler = wrk
 
-	log.Printf("starting server at %s", server.GetAddr())
+	log.Printf("starting server at %s", srv.GetAddr())
 	if open {
-		platform.Open(server.GetAddr())
+		platform.Open(srv.GetAddr())
 	}
-	platform.Start(server)
+	wrk.StartFeedCleaner()
+	wrk.SetRefreshRate(store.GetSettings().RefreshRate)
+	platform.Start(srv)
 }

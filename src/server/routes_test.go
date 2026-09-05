@@ -15,7 +15,7 @@ import (
 )
 
 func TestStatic(t *testing.T) {
-	handler := NewServer(nil, "127.0.0.1:8000").Handler()
+	handler := NewServer("127.0.0.1:8000").Handler()
 	url := "/static/bundle.js"
 
 	recorder := httptest.NewRecorder()
@@ -27,7 +27,7 @@ func TestStatic(t *testing.T) {
 }
 
 func TestStaticWithBase(t *testing.T) {
-	server := NewServer(nil, "127.0.0.1:8000")
+	server := NewServer("127.0.0.1:8000")
 	server.BasePath = "/sub"
 
 	handler := server.Handler()
@@ -42,7 +42,7 @@ func TestStaticWithBase(t *testing.T) {
 }
 
 func TestStaticBanTemplates(t *testing.T) {
-	handler := NewServer(nil, "127.0.0.1:8000").Handler()
+	handler := NewServer("127.0.0.1:8000").Handler()
 	url := "/static/login.html"
 
 	recorder := httptest.NewRecorder()
@@ -57,7 +57,9 @@ func TestIndexGzipped(t *testing.T) {
 	log.SetOutput(io.Discard)
 	db, _ := storage.New(":memory:")
 	log.SetOutput(os.Stderr)
-	handler := NewServer(db, "127.0.0.1:8000").Handler()
+	server := NewServer("127.0.0.1:8000")
+	server.Storage = NewLocalStorage(db)
+	handler := server.Handler()
 	url := "/"
 
 	recorder := httptest.NewRecorder()
@@ -101,7 +103,8 @@ func TestFeedCreateWithTitleOverride(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := NewServer(db, "127.0.0.1:8000")
+	server := NewServer("127.0.0.1:8000")
+	server.Storage = NewLocalStorage(db)
 	handler := server.Handler()
 
 	t.Run("override title", func(t *testing.T) {

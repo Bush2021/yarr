@@ -49,8 +49,11 @@
             <v-icon class="me-1" name="plus" />
             {{ $t("new_feed") }}
           </button>
-          <div class="c-dropdown-divider"></div>
-          <button class="c-dropdown-item w-100 text-start" @click="fetchAllFeeds()">
+          <div class="c-dropdown-divider" v-if="refreshAvailable"></div>
+          <button
+            class="c-dropdown-item w-100 text-start"
+            @click="fetchAllFeeds()"
+            v-if="refreshAvailable">
             <v-icon class="me-1" name="rotate-cw" />
             {{ $t("refresh_feeds") }}
           </button>
@@ -71,12 +74,12 @@
               v-for="t in ['light', 'sepia', 'night', 'system']"></button>
           </div>
 
-          <div class="c-dropdown-divider"></div>
+          <div class="c-dropdown-divider" v-if="refreshAvailable"></div>
 
-          <header class="c-dropdown-header" role="heading" aria-level="2">
+          <header class="c-dropdown-header" role="heading" aria-level="2" v-if="refreshAvailable">
             {{ $t("auto_refresh") }}
           </header>
-          <div class="row text-center m-0">
+          <div class="row text-center m-0" v-if="refreshAvailable">
             <button
               class="c-dropdown-item col-4 px-0"
               @click.stop="changeRefreshRate(-1)"
@@ -638,6 +641,7 @@ export default defineComponent({
       },
 
       showModal: "" as "" | "shortcuts" | "newfeed",
+      refreshAvailable: true,
       loading: {
         feeds: 0,
         items: false,
@@ -949,6 +953,7 @@ export default defineComponent({
       if (loopMode && !this.itemSelected) this.refreshItems();
 
       this.loading.feeds = data.running;
+      this.refreshAvailable = data.refresh;
       if (data.running) {
         setTimeout(() => this.refreshStats(true), 500);
       }

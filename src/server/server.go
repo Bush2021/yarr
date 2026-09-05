@@ -8,17 +8,15 @@ import (
 	"strings"
 
 	"github.com/nkanaev/yarr/src/storage"
-	"github.com/nkanaev/yarr/src/worker"
 )
 
 type Server struct {
 	Addr     string
 	BasePath string
 
-	worker *worker.Worker
-
-	Storage StorageProvider
-	Auth    AuthProvider
+	Storage   StorageProvider
+	Scheduler FeedScheduler
+	Auth      AuthProvider
 
 	// https
 	CertFile string
@@ -27,8 +25,7 @@ type Server struct {
 
 func NewServer(addr string) *Server {
 	return &Server{
-		Addr:    addr,
-		worker:  worker.NewWorker(db),
+		Addr: addr,
 	}
 }
 
@@ -45,10 +42,6 @@ func (s *Server) db(r *http.Request) storage.Storage {
 }
 
 func (s *Server) Start() {
-	refreshRate := s.db(nil).GetSettings().RefreshRate
-	s.worker.StartFeedCleaner()
-	s.worker.SetRefreshRate(refreshRate)
-
 	var ln net.Listener
 	var err error
 

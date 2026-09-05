@@ -118,8 +118,13 @@ func (s *Server) handleManifest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
+	var running int32
+	if s.Scheduler != nil {
+		running = s.Scheduler.FeedsPending()
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"running": s.worker.FeedsPending(),
+		"running": running,
+		"refresh": s.Scheduler != nil,
 		"stats":   s.db(r).FeedStats(),
 	})
 }
@@ -175,7 +180,9 @@ func (s *Server) handleFolder(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleFeedRefresh(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
-		s.worker.RefreshFeeds()
+		if s.Scheduler != nil {
+			s.Scheduler.RefreshFeeds()
+		}
 		w.WriteHeader(http.StatusOK)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -233,7 +240,7 @@ func (s *Server) handleFeedList(w http.ResponseWriter, r *http.Request) {
 			if len(items) > 0 {
 				s.db(r).CreateItems(items)
 			}
-			s.worker.FindFeedFavicon(*feed)
+			// TODO: DiscoverFeed must search for favicon too
 
 			writeJSON(w, http.StatusOK, map[string]any{
 				"status": "success",
@@ -410,8 +417,8 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if s.db(r).UpdateSettings(params) {
-			if params.RefreshRate != nil {
-				s.worker.SetRefreshRate(*params.RefreshRate)
+			if s.Scheduler != nil && params.RefreshRate != nil {
+				s.Scheduler.SetRefreshRate(*params.RefreshRate)
 			}
 			w.WriteHeader(http.StatusOK)
 		} else {
@@ -455,7 +462,9 @@ func (s *Server) handleOPMLImport(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		s.worker.RefreshFeeds()
+		if s.Scheduler != nil {
+			s.Scheduler.RefreshFeeds()
+		}
 
 		w.WriteHeader(http.StatusOK)
 	default:
