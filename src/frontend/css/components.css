@@ -67,6 +67,7 @@
 }
 
 .c-button-pill {
+  display: flex;
   height: var(--v-chrome-height);
   padding: 0.25rem 0.5rem;
   border-radius: var(--bs-border-radius);
@@ -192,9 +193,8 @@
 }
 
 .c-icon {
-  /*display: inline-flex;
-  align-self: center;*/
-  display: inline-block;
+  display: inline-flex;
+  align-self: center;
 
   & > svg,
   & > img {
@@ -217,13 +217,13 @@
 }
 
 .c-search {
+  display: flex;
   position: relative;
 
   & .c-icon {
     position: absolute;
     display: flex;
     align-items: center;
-    height: 100%;
     width: 2rem;
     justify-content: center;
     pointer-events: none;
