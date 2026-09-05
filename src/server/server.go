@@ -12,12 +12,13 @@ import (
 )
 
 type Server struct {
-	Addr   string
-	db     storage.Storage
+	Addr     string
+	BasePath string
+
 	worker *worker.Worker
 
-	BasePath string
-	Auth     AuthProvider
+	Storage StorageProvider
+	Auth    AuthProvider
 
 	// https
 	CertFile string
@@ -26,9 +27,9 @@ type Server struct {
 
 func NewServer(db storage.Storage, addr string) *Server {
 	return &Server{
-		db:     db,
-		Addr:   addr,
-		worker: worker.NewWorker(db),
+		Storage: NewLocalStorage(db),
+		Addr:    addr,
+		worker:  worker.NewWorker(db),
 	}
 }
 
@@ -41,7 +42,7 @@ func (h *Server) GetAddr() string {
 }
 
 func (s *Server) Start() {
-	refreshRate := s.db.GetSettings().RefreshRate
+	refreshRate := s.db(nil).GetSettings().RefreshRate
 	s.worker.StartFeedCleaner()
 	s.worker.SetRefreshRate(refreshRate)
 

@@ -84,7 +84,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		isAuthenticated = s.Auth.IsAuthenticated(r)
 	}
 
-	settings := s.db.GetSettings()
+	settings := s.db(r).GetSettings()
 	if !isAuthenticated {
 		settings = model.Settings{
 			Language:  settings.Language,
@@ -120,14 +120,14 @@ func (s *Server) handleManifest(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"running": s.worker.FeedsPending(),
-		"stats":   s.db.FeedStats(),
+		"stats":   s.db(r).FeedStats(),
 	})
 }
 
 func (s *Server) handleFolderList(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		writeJSON(w, http.StatusOK, s.db.ListFolders())
+		writeJSON(w, http.StatusOK, s.db(r).ListFolders())
 	case http.MethodPost:
 		var body FolderCreateForm
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -139,7 +139,7 @@ func (s *Server) handleFolderList(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Folder title missing."})
 			return
 		}
-		writeJSON(w, http.StatusCreated, s.db.CreateFolder(body.Title))
+		writeJSON(w, http.StatusCreated, s.db(r).CreateFolder(body.Title))
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -159,13 +159,13 @@ func (s *Server) handleFolder(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		s.db.UpdateFolder(id, model.UpdateFolderParams{
+		s.db(r).UpdateFolder(id, model.UpdateFolderParams{
 			Title:      body.Title,
 			IsExpanded: body.IsExpanded,
 		})
 		w.WriteHeader(http.StatusOK)
 	case http.MethodDelete:
-		s.db.DeleteFolder(id)
+		s.db(r).DeleteFolder(id)
 		w.WriteHeader(http.StatusNoContent)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -184,7 +184,7 @@ func (s *Server) handleFeedRefresh(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleFeedErrors(w http.ResponseWriter, r *http.Request) {
 	errors := make(map[int64]string)
-	states, err := s.db.ListFeedStates()
+	states, err := s.db(r).ListFeedStates()
 	if err == nil {
 		for _, state := range states {
 			if state.LastError != "" {
@@ -198,7 +198,7 @@ func (s *Server) handleFeedErrors(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleFeedList(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		writeJSON(w, http.StatusOK, s.db.ListFeeds())
+		writeJSON(w, http.StatusOK, s.db(r).ListFeeds())
 	case http.MethodPost:
 		var form FeedCreateForm
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
@@ -223,7 +223,7 @@ func (s *Server) handleFeedList(w http.ResponseWriter, r *http.Request) {
 			if form.TitleOverride != "" {
 				title = form.TitleOverride
 			}
-			feed := s.db.CreateFeed(model.CreateFeedParams{
+			feed := s.db(r).CreateFeed(model.CreateFeedParams{
 				Title:    title,
 				Link:     result.Feed.SiteURL,
 				FeedLink: result.FeedLink,
@@ -231,7 +231,7 @@ func (s *Server) handleFeedList(w http.ResponseWriter, r *http.Request) {
 			})
 			items := worker.ConvertItems(result.Feed.Items, *feed)
 			if len(items) > 0 {
-				s.db.CreateItems(items)
+				s.db(r).CreateItems(items)
 			}
 			s.worker.FindFeedFavicon(*feed)
 
@@ -255,7 +255,7 @@ func (s *Server) handleFeed(w http.ResponseWriter, r *http.Request) {
 	}
 	switch r.Method {
 	case http.MethodPut:
-		feed := s.db.GetFeed(id)
+		feed := s.db(r).GetFeed(id)
 		if feed == nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -287,10 +287,10 @@ func (s *Server) handleFeed(w http.ResponseWriter, r *http.Request) {
 				params.FeedLink = &l
 			}
 		}
-		s.db.UpdateFeed(id, params)
+		s.db(r).UpdateFeed(id, params)
 		w.WriteHeader(http.StatusOK)
 	case http.MethodDelete:
-		s.db.DeleteFeed(id)
+		s.db(r).DeleteFeed(id)
 		w.WriteHeader(http.StatusNoContent)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -305,7 +305,7 @@ func (s *Server) handleItem(w http.ResponseWriter, r *http.Request) {
 	}
 	switch r.Method {
 	case http.MethodGet:
-		item := s.db.GetItem(id)
+		item := s.db(r).GetItem(id)
 		if item == nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -313,7 +313,7 @@ func (s *Server) handleItem(w http.ResponseWriter, r *http.Request) {
 
 		// runtime fix for relative links
 		if !htmlutil.IsAPossibleLink(item.Link) {
-			if feed := s.db.GetFeed(item.FeedId); feed != nil {
+			if feed := s.db(r).GetFeed(item.FeedId); feed != nil {
 				item.Link = htmlutil.AbsoluteUrl(item.Link, feed.Link)
 			}
 		}
@@ -332,7 +332,7 @@ func (s *Server) handleItem(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if body.Status != nil {
-			s.db.UpdateItemStatus(id, *body.Status)
+			s.db(r).UpdateItemStatus(id, *body.Status)
 		}
 		w.WriteHeader(http.StatusOK)
 	default:
@@ -365,7 +365,7 @@ func (s *Server) handleItemList(w http.ResponseWriter, r *http.Request) {
 		}
 		newestFirst := query.Get("oldest_first") != "true"
 
-		items := s.db.ListItems(filter, perPage+1, newestFirst, true)
+		items := s.db(r).ListItems(filter, perPage+1, newestFirst, true)
 		hasMore := false
 		if len(items) == perPage+1 {
 			hasMore = true
@@ -392,7 +392,7 @@ func (s *Server) handleItemList(w http.ResponseWriter, r *http.Request) {
 		if feedID, err := strconv.ParseInt(query.Get("feed_id"), 10, 64); err == nil {
 			filter.FeedID = &feedID
 		}
-		s.db.MarkItemsRead(filter)
+		s.db(r).MarkItemsRead(filter)
 		w.WriteHeader(http.StatusOK)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -402,14 +402,14 @@ func (s *Server) handleItemList(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		writeJSON(w, http.StatusOK, s.db.GetSettings())
+		writeJSON(w, http.StatusOK, s.db(r).GetSettings())
 	case http.MethodPut:
 		var params model.UpdateSettingsParams
 		if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if s.db.UpdateSettings(params) {
+		if s.db(r).UpdateSettings(params) {
 			if params.RefreshRate != nil {
 				s.worker.SetRefreshRate(*params.RefreshRate)
 			}
@@ -437,16 +437,16 @@ func (s *Server) handleOPMLImport(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		for _, f := range doc.Feeds {
-			s.db.CreateFeed(model.CreateFeedParams{
+			s.db(r).CreateFeed(model.CreateFeedParams{
 				Title:    f.Title,
 				Link:     f.SiteUrl,
 				FeedLink: f.FeedUrl,
 			})
 		}
 		for _, f := range doc.Folders {
-			folder := s.db.CreateFolder(f.Title)
+			folder := s.db(r).CreateFolder(f.Title)
 			for _, ff := range f.AllFeeds() {
-				s.db.CreateFeed(model.CreateFeedParams{
+				s.db(r).CreateFeed(model.CreateFeedParams{
 					Title:    ff.Title,
 					Link:     ff.SiteUrl,
 					FeedLink: ff.FeedUrl,
@@ -473,7 +473,7 @@ func (s *Server) handleOPMLExport(w http.ResponseWriter, r *http.Request) {
 		doc := opml.Folder{}
 
 		feedsByFolderID := make(map[int64][]*model.Feed)
-		for _, feed := range s.db.ListFeeds() {
+		for _, feed := range s.db(r).ListFeeds() {
 			if feed.FolderId == nil {
 				doc.Feeds = append(doc.Feeds, opml.Feed{
 					Title:   feed.Title,
@@ -486,7 +486,7 @@ func (s *Server) handleOPMLExport(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		for _, folder := range s.db.ListFolders() {
+		for _, folder := range s.db(r).ListFolders() {
 			folderFeeds := feedsByFolderID[folder.Id]
 			if len(folderFeeds) == 0 {
 				continue
