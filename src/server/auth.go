@@ -16,21 +16,25 @@ type AuthProvider interface {
 	FeverAPIKey() string
 }
 
-type LocalAuth struct {
+type localAuth struct {
 	Username string
 	Password string
 	BasePath string
 }
 
-func (a LocalAuth) Middleware(next http.Handler) http.HandlerFunc {
+func NewLocalAuthProvider(username, password, basepath string) AuthProvider {
+	return &localAuth{Username: username, Password: password, BasePath: basepath}
+}
+
+func (a *localAuth) Middleware(next http.Handler) http.HandlerFunc {
 	return middleware.LocalAuth(next, a.Username, a.Password)
 }
 
-func (a LocalAuth) IsAuthenticated(r *http.Request) bool {
+func (a *localAuth) IsAuthenticated(r *http.Request) bool {
 	return middleware.IsAuthenticated(r, a.Username, a.Password)
 }
 
-func (a LocalAuth) Authenticate(rw http.ResponseWriter, username, password string) bool {
+func (a *localAuth) Authenticate(rw http.ResponseWriter, username, password string) bool {
 	if !middleware.StringsEqual(username, a.Username) || !middleware.StringsEqual(password, a.Password) {
 		return false
 	}
@@ -38,11 +42,11 @@ func (a LocalAuth) Authenticate(rw http.ResponseWriter, username, password strin
 	return true
 }
 
-func (a LocalAuth) Logout(rw http.ResponseWriter) {
+func (a *localAuth) Logout(rw http.ResponseWriter) {
 	middleware.Logout(rw, a.BasePath)
 }
 
-func (a LocalAuth) FeverAPIKey() string {
+func (a *localAuth) FeverAPIKey() string {
 	md5HashValue := md5.Sum(fmt.Appendf(nil, "%s:%s", a.Username, a.Password))
 	return fmt.Sprintf("%x", md5HashValue[:])
 }

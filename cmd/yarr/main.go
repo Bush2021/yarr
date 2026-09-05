@@ -142,7 +142,7 @@ func main() {
 	}
 
 	worker.SetVersion(Version)
-	server := yarr.NewServer(store, addr)
+	server := yarr.NewServer(addr)
 
 	if basepath != "" {
 		server.BasePath = "/" + strings.Trim(basepath, "/")
@@ -154,8 +154,9 @@ func main() {
 	}
 
 	if username != "" && password != "" {
-		server.Auth = yarr.LocalAuth{Username: username, Password: password, BasePath: server.BasePath}
+		server.Auth = yarr.NewLocalAuthProvider(username, password, basepath)
 	}
+	server.Storage = yarr.NewLocalStorage(store)
 
 	log.Printf("starting server at %s", server.GetAddr())
 	if open {

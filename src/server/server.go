@@ -25,9 +25,8 @@ type Server struct {
 	KeyFile  string
 }
 
-func NewServer(db storage.Storage, addr string) *Server {
+func NewServer(addr string) *Server {
 	return &Server{
-		Storage: NewLocalStorage(db),
 		Addr:    addr,
 		worker:  worker.NewWorker(db),
 	}
@@ -39,6 +38,10 @@ func (h *Server) GetAddr() string {
 		proto = "https"
 	}
 	return proto + "://" + h.Addr + h.BasePath
+}
+
+func (s *Server) db(r *http.Request) storage.Storage {
+	return s.Storage.GetStorage(r)
 }
 
 func (s *Server) Start() {

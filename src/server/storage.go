@@ -10,18 +10,14 @@ type StorageProvider interface {
 	GetStorage(r *http.Request) storage.Storage
 }
 
-type LocalStorage struct {
+type localStorage struct {
 	storage storage.Storage
 }
 
-func NewLocalStorage(db storage.Storage) *LocalStorage {
-	return &LocalStorage{storage: db}
+func NewLocalStorage(db storage.Storage) StorageProvider {
+	return &localStorage{storage: db}
 }
 
-func (s *LocalStorage) GetStorage(r *http.Request) storage.Storage {
+func (s *localStorage) GetStorage(r *http.Request) storage.Storage {
 	return s.storage
-}
-
-func (s *Server) db(r *http.Request) storage.Storage {
-	return s.Storage.GetStorage(r)
 }
