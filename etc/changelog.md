@@ -4,6 +4,7 @@
 - (fix) delayed initial render of feeds (thanks to @Digitalone1 for the report)
 - (fix) changing font size for articles (thanks to @iredmail for the report)
 - (fix) handling malformed authfiles
+- (fix) article dates translations
 - (etc) cosmetic UI changes
 - (etc) frontend refactoring (vue 2 -> 3, bootstrap 4 -> 5)
 
