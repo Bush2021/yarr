@@ -107,6 +107,7 @@
 .c-dropdown-item {
   padding: 0.375rem 0.75rem;
   white-space: nowrap;
+  min-height: 1.5lh;
 
   appearance: none;
   border: 0;

@@ -81,7 +81,7 @@
           </header>
           <div class="row text-center m-0" v-if="refreshAvailable">
             <button
-              class="c-dropdown-item col-4 px-0 d-flex gap-1"
+              class="c-dropdown-item col-4 px-0 d-flex gap-1 justify-content-center"
               @click.stop="changeRefreshRate(-1)"
               :disabled="!refreshRate">
               <v-icon name="chevron-down" />
@@ -90,7 +90,7 @@
               {{ refreshRateTitle }}
             </div>
             <button
-              class="c-dropdown-item col-4 px-0 d-flex gap-1"
+              class="c-dropdown-item col-4 px-0 d-flex gap-1 justify-content-center"
               @click.stop="changeRefreshRate(1)"
               :disabled="refreshRate === refreshRateOptions[refreshRateOptions.length - 1].value">
               <v-icon name="chevron-up" />
