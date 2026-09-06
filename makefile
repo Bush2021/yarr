@@ -33,7 +33,7 @@ src/platform/versioninfo.rc:
 # build targets
 
 assets:
-	npm run build
+	npm run build -- --minify
 
 host: assets
 	go build $(GO_FLAGS) -o out/yarr ./cmd/yarr
