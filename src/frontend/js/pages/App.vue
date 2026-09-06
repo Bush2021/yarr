@@ -228,7 +228,7 @@
           <template v-slot:button>
             <v-icon name="more-horizontal" />
           </template>
-          <header class="c-dropdown-header" role="heading" aria-level="2">
+          <header class="c-dropdown-header text-break line-clamp-3" role="heading" aria-level="2">
             {{ current?.feed?.title }}
           </header>
           <a
@@ -273,7 +273,7 @@
               v-if="folder.id != current.feed.folder_id"
               @click="moveFeed(current.feed, folder.id)">
               <v-icon class="me-1" name="folder" />
-              {{ folder.title }}
+              <span class="text-break line-clamp-3">{{ folder.title }}</span>
             </button>
           </template>
           <button
@@ -305,7 +305,7 @@
           <template v-slot:button>
             <v-icon name="more-horizontal" />
           </template>
-          <header class="c-dropdown-header" role="heading" aria-level="2">
+          <header class="c-dropdown-header text-break line-clamp-3" role="heading" aria-level="2">
             {{ current?.folder?.title }}
           </header>
           <button class="c-dropdown-item w-100 text-start d-flex gap-1" @click="renameFolder(current.folder)">
