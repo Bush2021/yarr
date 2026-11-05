@@ -59,6 +59,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/folders/{id}", secure(s.handleFolder))
 	mux.HandleFunc("/api/feeds", secure(s.handleFeedList))
 	mux.HandleFunc("/api/feeds/refresh", secure(s.handleFeedRefresh))
+	mux.HandleFunc("/api/feeds/{id}/refresh", secure(s.handleFeedSingleRefresh))
 	mux.HandleFunc("/api/feeds/errors", secure(s.handleFeedErrors))
 	mux.HandleFunc("/api/feeds/{id}", secure(s.handleFeed))
 	mux.HandleFunc("/api/items", secure(s.handleItemList))
@@ -184,6 +185,28 @@ func (s *Server) handleFeedRefresh(w http.ResponseWriter, r *http.Request) {
 			s.Scheduler.RefreshFeeds()
 		}
 		w.WriteHeader(http.StatusOK)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) handleFeedSingleRefresh(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	switch r.Method {
+	case http.MethodPost:
+		feed := s.db(r).GetFeed(id)
+		if feed == nil {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if s.Scheduler != nil {
+			s.Scheduler.RefreshFeed(feed)
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}

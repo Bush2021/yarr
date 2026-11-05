@@ -10,6 +10,7 @@ interface DropdownFeedProps {
   onUpdateLink: (feed: Feed) => void;
   onMove: (feed: Feed, folderId: number | null) => void;
   onMoveToNewFolder: (feed: Feed) => void;
+  onRefresh: (feed: Feed) => void;
   onDelete: (feed: Feed) => void;
 }
 
@@ -20,6 +21,7 @@ export default function DropdownFeed({
   onUpdateLink,
   onMove,
   onMoveToNewFolder,
+  onRefresh,
   onDelete,
 }: DropdownFeedProps) {
   const { t } = useI18n();
@@ -105,6 +107,13 @@ export default function DropdownFeed({
         {t("new_folder")}
       </button>
       <div className="c-dropdown-divider" />
+      <button
+        type="button"
+        className="c-dropdown-item w-100 text-start d-flex gap-1"
+        onClick={() => onRefresh(feed)}>
+        <Icon className="me-1" name="rotate-cw" />
+        {t("refresh_feeds")}
+      </button>
       <button
         type="button"
         className="c-dropdown-item is-danger w-100 text-start text-danger d-flex gap-1"
