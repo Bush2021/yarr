@@ -4,20 +4,26 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/nkanaev/yarr/src/storage"
+	"github.com/nkanaev/yarr/src/storage/model"
 )
 
 type fakeScheduler struct {
-	pending   int32
-	refreshes int
-	rates     []int64
+	pending         int32
+	refreshes       int
+	rates           []int64
+	singleRefreshes []int64
 }
 
 func (f *fakeScheduler) FeedsPending() int32 { return f.pending }
 func (f *fakeScheduler) RefreshFeeds()       { f.refreshes++ }
+func (f *fakeScheduler) RefreshFeed(feed *model.Feed) {
+	f.singleRefreshes = append(f.singleRefreshes, feed.Id)
+}
 func (f *fakeScheduler) SetRefreshRate(min int64) {
 	f.rates = append(f.rates, min)
 }
@@ -68,6 +74,40 @@ func TestSchedulerRefreshFeeds(t *testing.T) {
 	}
 	if sched.refreshes != 1 {
 		t.Errorf("expected 1 refresh, got %d", sched.refreshes)
+	}
+}
+
+func TestSchedulerRefreshSingleFeed(t *testing.T) {
+	db, err := storage.New(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	feed := db.CreateFeed(model.CreateFeedParams{Title: "Test", FeedLink: "https://example.com/feed"})
+	sched := &fakeScheduler{}
+	server := NewServer("127.0.0.1:8000")
+	server.Storage = NewLocalStorage(db)
+	server.Scheduler = sched
+	handler := server.Handler()
+
+	for _, tc := range []struct {
+		method string
+		id     string
+		status int
+	}{
+		{http.MethodPost, strconv.FormatInt(feed.Id, 10), http.StatusOK},
+		{http.MethodPost, "invalid", http.StatusBadRequest},
+		{http.MethodPost, "9999", http.StatusNotFound},
+		{http.MethodGet, strconv.FormatInt(feed.Id, 10), http.StatusMethodNotAllowed},
+	} {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, httptest.NewRequest(tc.method, "/api/feeds/"+tc.id+"/refresh", nil))
+		if recorder.Code != tc.status {
+			t.Errorf("%s %s: status = %d; want %d", tc.method, tc.id, recorder.Code, tc.status)
+		}
+	}
+	if len(sched.singleRefreshes) != 1 || sched.singleRefreshes[0] != feed.Id {
+		t.Fatalf("single refreshes = %v; want [%d]", sched.singleRefreshes, feed.Id)
 	}
 }
 

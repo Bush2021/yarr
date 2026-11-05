@@ -598,6 +598,19 @@ export default function App() {
     else itemSelectedReadability.value = data?.content || "";
   };
 
+  const refreshFeed = async (feed: Feed) => {
+    loadingFeeds.value++;
+    const [err] = await to(api.feeds.refresh_one(feed.id));
+    loadingFeeds.value = Math.max(0, loadingFeeds.value - 1);
+    if (err) {
+      showToast({ title: t("fail_refresh"), description: errDescription(err) }, { level: "fail" });
+      return;
+    }
+    refreshFeeds();
+    refreshStats();
+    if (currentFeed.value?.id === feed.id) refreshItems();
+  };
+
   const fetchAllFeeds = async () => {
     if (loadingFeeds.value) return;
     const [err] = await to(api.feeds.refresh());
@@ -879,6 +892,7 @@ export default function App() {
               onUpdateLink={updateFeedLink}
               onMove={moveFeed}
               onMoveToNewFolder={moveFeedToNewFolder}
+              onRefresh={refreshFeed}
               onDelete={deleteFeed}
             />
           ) : currentFolder.value ? (
